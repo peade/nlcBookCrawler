@@ -8,9 +8,10 @@ class dataToMongo:
 
     def saveData(self, dict):
         one = self.findById(dict['_id'])
-        print(one)
         if not one:
             self.bookTable.insert_one(dict)
+        else:
+            print('saved')
 
     def findById(self, id):
         return self.bookTable.find_one({'_id': id})
