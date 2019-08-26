@@ -33,18 +33,20 @@ class nlcBookData:
         self.keyword = keyword
 
     def loadPage(self, startIdx, year):
+        self.isFinish = False
         self.year = year
-        self.driver.get('http://ucs.nlc.cn')
-        more = self.driver.find_element_by_link_text('更多选项')
-        more.click()
-        # 开始搜索
-        self.startSearch(self.year)
-        # 获取搜索结果里的图书链接
-        # self.getBookLink()
+        print(self.keyword, self.year)
         link = ''
         try:
+            self.driver.get('http://ucs.nlc.cn')
+            more = self.driver.find_element_by_link_text('更多选项')
+            more.click()
+            # 开始搜索
+            self.startSearch(self.year)
             link = self.driver.find_element_by_css_selector('#nav a').get_attribute('href')
         except exceptions.NoSuchElementException as e:
+            print(e)
+        except exceptions.TimeoutException as e:
             print(e)
         try:
             if link:
@@ -55,19 +57,22 @@ class nlcBookData:
                     if self.isFinish:
                         self.index = 100
                         self.driver.quit()
+                        # self.driver = webdriver.Chrome()
                         self.driver = webdriver.Chrome(chrome_options=chrome_options)
                         break
                     self.goToPage(i)
             else:
                 self.getBookLink()
-                self.isFinish = True
+                # self.isFinish = True
                 self.index = 100
                 self.driver.quit()
+                # self.driver = webdriver.Chrome()
                 self.driver = webdriver.Chrome(chrome_options=chrome_options)
 
         except Exception:
             # self.driver.close()
             self.driver.quit()
+            # self.driver = webdriver.Chrome()
             self.driver = webdriver.Chrome(chrome_options=chrome_options)
             print(Exception)
             traceback.print_exc()
@@ -85,6 +90,7 @@ class nlcBookData:
         #     self.getBookLink()
 
     def startSearch(self, year):
+
         # 字段选择
         cat = self.driver.find_element_by_id("find_code")
         Select(cat).select_by_index(9)
@@ -193,24 +199,26 @@ class nlcBookData:
 if __name__ == "__main__":
     action = nlcBookData()
     action.index = 0
-    # keyword = ['0', '0*', '1', '1*', '2', '2*', '3', '3*', '4', '4*', '5', '5*', '6', '6*', '7', '7*', '8', '8*', '9',
-    #            '9*', '-*', '']
-    keyword = ['0?', '1?', '2?', '3?', '4?', '5?', '6?', '7?', '8?', '9?', '-?', '?', '0*', '1*', '2*', '3*', '4*',
-               '5*', '6*', '7*', '8*', '9*', '-*', '*']
+    # '0?', '1?', '2?', '3?', '4?', '5?', '6?', '7?', '8?', '9?', '-?', '?',
+    keyword = ['0*', '1*', '2*', '3*', '4*', '5*', '6*', '7*', '8*', '9*', '-*', '']
+    # keyword = ['*']
     kwIdx = 0
-    year = 2000
+    year = 2015
     while True:
         if action.index == 100:
+            print('finish', action.index)
             action.index = 0
-            kwIdx += 1
-            if kwIdx >= len(keyword):
-                kwIdx = 0
-                year += 1
-        if action.year > 2000 and kwIdx == 0:
+            year += 1
+            # kwIdx += 1
+            # if kwIdx >= len(keyword):
+            #     kwIdx = 0
+            #     year += 1
+        if year > 2018:
             break
-        print(action.index, year, kwIdx, 'G35' + keyword[kwIdx])
-        action.setKeyword('G35' + keyword[kwIdx])
-
+        # print(action.index, year, kwIdx, 'G25' + keyword[kwIdx])
+        # kw = 'G35' + keyword[kwIdx]
+        kw = 'G25*'
+        action.setKeyword(kw)
         action.loadPage(action.index, year)
 
         # try:
