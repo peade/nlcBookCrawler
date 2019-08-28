@@ -54,44 +54,46 @@ class handleBookInfo:
         # print(book)
         return book
 
-    def reg_isbn(self, str):
-        # str = '|a 7-5333-0855-7 |d CNY18.00'
-        pattern = r'^\|a\s(.*)\s\|d\s(CNY.*)$'
-        result = re.match(pattern, str)
-        print(result.group(1), result.group(2))
-        return {
-            'isbn_no': result.group(1),
-            'price': result.group(2)
-        }
+    def item_process(self, item):
+        book_dic = {}
+        isbn_pattern = r'^\|a\s(.*)\s\|d\s(CNY.*)$'
+        isbn_result = re.match(isbn_pattern, item['isbn'])
+        if isbn_result is not None:
+            book_dic['isbn_no'] = isbn_result.group(1)
+            book_dic['price'] = isbn_result.group(2)
 
-    def reg_book_name(self, str):
-        pattern = r'\|a\s*([^\s]*)\s*'
-        result = re.search(pattern, str)
-        return result.group(1)
+        bookname_pattern = r'\|a\s*([^\s]*)\s*'
+        bookname_result = re.search(bookname_pattern, item['name'])
+        if bookname_result is not None:
+            book_dic['bookname'] = bookname_result.group(1)
 
-    def reg_pub_info(self, str):
         city_pattern = r'\|a\s*([^\s]*)\s*'
         name_pattern = r'\|c\s*([^\s]*)\s*'
         year_pattern = r'\|d\s*([^\s]*)\s*'
 
-        city_result = re.search(city_pattern, str)
-        name_result = re.search(name_pattern, str)
-        year_result = re.search(year_pattern, str)
-        return {
-            'pub_city': city_result.group(1),
-            'pub_name': name_result.group(1),
-            'pub_year': year_result.group(1)
-        }
+        city_result = re.search(city_pattern, item['publisher'])
+        name_result = re.search(name_pattern, item['publisher'])
+        year_result = re.search(year_pattern, item['publisher'])
+        if city_result is not None:
+            book_dic['pub_city'] = city_result.group(1)
+        if name_result is not None:
+            book_dic['pub_name'] = name_result.group(1)
+        if year_result is not None:
+            book_dic['pub_year'] = year_result.group(1)
+        # print(book_dic)
+        # update_item
+        if book_dic:
+            self.bookTable.update_one({'_id': item['_id']}, {'$set': book_dic})
 
     def update_one(self, query, newVal):
-        self.bookTable.update_one(query, newVal)
+        self.bookTable.update_one(query, {'$set': newVal})
 
     def find_limit(self, num, query=None):
         if query is None:
             query = {}
         return self.bookTable.find(query).limit(num)
 
-    def find_duplicat(self):
+    def aggregate(self):
         pipeline = [
             {'$project': {
                 'isbn': 1,
@@ -109,22 +111,30 @@ class handleBookInfo:
         for r in res:
             print(r)
 
+    def page_query(self):
+        page_size = 10
+        page_no = 1
+        total = None
+        while True:
+            skip = page_size * (page_no - 1)
+            if total is not None and skip >= total:
+                break
+            print(page_no)
+            page_record = self.bookTable.find({}).limit(page_size).skip(skip)
+            total = page_record.count()
+            page_no += 1
+            for item in page_record:
+                print(item)
+                # self.item_process(item)
+
 
 if __name__ == "__main__":
     # dbOp = dataToMongo()
     # # dbOp.findByPublish("全国图书馆文献缩微中心")
     # dbOp.backDB()
     handle = handleBookInfo()
-    item = handle.find_one()
-    handle.find_duplicat()
-    # handle.regBookName(item['name'])
-    # pub_info = handle.reg_pub_info(item['publisher'])
-    # books = handle.find_limit(100)
-    # print(books.count())
-    # for book in books:
-    #     print(book)
-    # dic = handle.reg_isbn(item['isbn'])
-    # item['isbnNo'] = dic['isbnNo']
-    # item['price'] = dic['price']
-    # handle.updateOne({'_id': item['_id']}, {'$unset': {'isbnNo': dic['isbnNo']}})
-    print(item)
+    # item = handle.find_one()
+    # print(item)
+    # handle.item_process(item)
+
+    handle.page_query()
