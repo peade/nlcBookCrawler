@@ -1,5 +1,7 @@
 import pymongo
 import re
+import json
+import csv
 
 
 class dataToMongo:
@@ -105,7 +107,8 @@ class handleBookInfo:
                 'name': '$name',
                 'publisher': '$publisher'
             }, 'type_count': {'$sum': 1}}},
-            {'$sort': {'name': 1}}
+            {'$sort': {'type_count': -1}},
+            {'$limit': 10}
         ]
         res = self.bookTable.aggregate(pipeline)
         for r in res:
@@ -127,6 +130,39 @@ class handleBookInfo:
                 print(item)
                 # self.item_process(item)
 
+    def sort(self):
+        result = self.bookTable.find({}).limit(20).sort('name', 1)
+        for r in result:
+            print(r)
+
+    def deleteById(self, id):
+        self.bookTable.delete_one({'_id': id})
+
+    def export_json(self):
+        data = self.bookTable.find()
+        list = []
+        for da in data:
+            list.append(da)
+        with open('d:/book.json', 'w', encoding='utf8') as file:
+            file.write(json.dumps(list, indent=2, ensure_ascii=False))
+
+    def export_csv(self):
+        data = self.bookTable.find()
+        list = []
+        for da in data:
+            li = []
+            for d in da:
+                li.append(da[d])
+            list.append(li)
+        with open('d:/book.csv', 'w', encoding='utf8') as file:
+            writer = csv.writer(file)
+            writer.writerow([
+                '_id', 'isbn', 'name', 'version', 'publisher', 'pages', 'series', 'abstract', 'subject_terms',
+                'author', 'price', 'bookname', 'isbn_no', 'pub_city', 'pub_name', 'pub_year'
+            ])
+            for l in list:
+                writer.writerow(l)
+
 
 if __name__ == "__main__":
     # dbOp = dataToMongo()
@@ -136,5 +172,9 @@ if __name__ == "__main__":
     # item = handle.find_one()
     # print(item)
     # handle.item_process(item)
-
-    handle.page_query()
+    # handle.page_query()
+    # handle.sort()
+    # handle.deleteById('')
+    # handle.aggregate()
+    # handle.export_json()
+    handle.export_csv()
