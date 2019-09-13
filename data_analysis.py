@@ -120,4 +120,4 @@ class analysis:
 
 if __name__ == "__main__":
     ana = analysis()
-    ana.get_data_num()
+    ana.get_year_num()

@@ -110,4 +110,5 @@ venv.bak/
 dist
 build
 rawdata
+html
 
