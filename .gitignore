@@ -106,3 +106,8 @@ venv.bak/
 # IDE
 .idea
 .vscode
+# ignore folder to save files or datas
+dist
+build
+rawdata
+
