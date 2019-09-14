@@ -7,31 +7,31 @@ import csv
 class dataToMongo:
     dbClient = pymongo.MongoClient('mongodb://localhost:27017/')
     db = dbClient['bookdb']
-    bookTable = db['book']
-    backBookTable = db['bookBackUp']
+    book_table = db['book']
+    backbook_table = db['bookBackUp']
 
     def saveData(self, dict):
         one = self.findById(dict['_id'])
         if not one:
-            self.bookTable.insert_one(dict)
+            self.book_table.insert_one(dict)
         else:
             print('saved')
 
     def findById(self, id):
-        return self.bookTable.find_one({'_id': id})
+        return self.book_table.find_one({'_id': id})
 
     def getAll(self):
-        return self.bookTable.find()
+        return self.book_table.find()
 
     def deleteById(self, id):
-        self.bookTable.delete_one({'_id': id})
+        self.book_table.delete_one({'_id': id})
 
     def findOne(self):
-        item = self.bookTable.find_one()
+        item = self.book_table.find_one()
         print(item)
 
     def findByPublish(self, word):
-        item = self.bookTable.find({'publisher': re.compile(word)})
+        item = self.book_table.find({'publisher': re.compile(word)})
         for it in item:
             print(it['_id'])
             # self.deleteById(it['_id'])
@@ -39,20 +39,33 @@ class dataToMongo:
 
     def backDB(self):
         print('back')
-        allBook = self.bookTable.find()
-        all = self.backBookTable.find()
+        allBook = self.book_table.find()
+        all = self.backbook_table.find()
         print(all.count(), allBook.count())
         if all.count() == 0:
-            self.backBookTable.insert_many(allBook)
+            self.backbook_table.insert_many(allBook)
+
+
+# class sub_item():
+#     def __init__(self, word):
+#         self.word = word
+#         year_list = ['2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', '2010', '2011',
+#                      '2012', '2013', '2014', '2015', '2016', '2017', '2018']
+#         for year in year_list:
+#             self[year] = 0
+#
+#     def add_num(self, year):
+#         self[year] += 1
 
 
 class handleBookInfo:
     dbClient = pymongo.MongoClient('mongodb://localhost:27017/')
     db = dbClient['bookdb']
-    bookTable = db['book']
+    book_table = db['book']
+    sub_col = db['subject']
 
     def find_one(self):
-        book = self.bookTable.find_one()
+        book = self.book_table.find_one()
         # print(book)
         return book
 
@@ -85,15 +98,15 @@ class handleBookInfo:
         # print(book_dic)
         # update_item
         if book_dic:
-            self.bookTable.update_one({'_id': item['_id']}, {'$set': book_dic})
+            self.book_table.update_one({'_id': item['_id']}, {'$set': book_dic})
 
     def update_one(self, query, newVal):
-        self.bookTable.update_one(query, {'$set': newVal})
+        self.book_table.update_one(query, {'$set': newVal})
 
     def find_limit(self, num, query=None):
         if query is None:
             query = {}
-        return self.bookTable.find(query).limit(num)
+        return self.book_table.find(query).limit(num)
 
     def aggregate(self):
         pipeline = [
@@ -110,7 +123,7 @@ class handleBookInfo:
             {'$sort': {'type_count': -1}},
             {'$limit': 10}
         ]
-        res = self.bookTable.aggregate(pipeline)
+        res = self.book_table.aggregate(pipeline)
         for r in res:
             print(r)
 
@@ -123,7 +136,7 @@ class handleBookInfo:
             if total is not None and skip >= total:
                 break
             print(page_no)
-            page_record = self.bookTable.find({}).limit(page_size).skip(skip)
+            page_record = self.book_table.find({}).limit(page_size).skip(skip)
             total = page_record.count()
             page_no += 1
             for item in page_record:
@@ -131,15 +144,15 @@ class handleBookInfo:
                 # self.item_process(item)
 
     def sort(self):
-        result = self.bookTable.find({}).limit(20).sort('name', 1)
+        result = self.book_table.find({}).limit(20).sort('name', 1)
         for r in result:
             print(r)
 
     def deleteById(self, id):
-        self.bookTable.delete_one({'_id': id})
+        self.book_table.delete_one({'_id': id})
 
     def export_json(self):
-        data = self.bookTable.find()
+        data = self.book_table.find()
         list = []
         for da in data:
             list.append(da)
@@ -147,7 +160,7 @@ class handleBookInfo:
             file.write(json.dumps(list, indent=2, ensure_ascii=False))
 
     def export_csv(self):
-        data = self.bookTable.find()
+        data = self.book_table.find()
         list = []
         for da in data:
             li = []
@@ -163,18 +176,54 @@ class handleBookInfo:
             for l in list:
                 writer.writerow(l)
 
+    # 主题词处理
+    def subject_word(self):
+        all = self.book_table.find()
+        for item in all:
+            if 'sub_words' in item:
+                print(item['sub_words'])
+            elif 'subject_terms' in item:
+                pattern = r'\|[a-z]\s+([^\s\|\$]*)'
+                result = re.findall(pattern, item['subject_terms'])
+                words = set(result)
+                word_str = '|'.join(list(words))
+                self.book_table.update_one({'_id': item['_id']}, {'$set': {'sub_words': word_str}})
+
+    # 主题词按年分析
+    def year_subject(self):
+        year_list = ['2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', '2010', '2011',
+                     '2012', '2013', '2014', '2015', '2016', '2017', '2018']
+        exclude_list = ['研究', '方法', '分析', '关系', '计划', '技术', '建设',
+                        '教材', '介绍', '文集', '论文集', '选集', '作品', '作品集']
+        all_book = self.book_table.find()
+        subject_set = set()
+        book_list = []
+        for book in all_book:
+            book_list.append(book)
+            pattern = r'([^]?[^|]+[$]?)'
+            result = re.findall(pattern, book['sub_words'])
+            temp_set = set(result)
+            subject_set = subject_set.union(temp_set)
+        subject_dict = dict()
+        for sub in subject_set:
+            temp_dict = {'word': sub, 'total': 0}
+            for year in year_list:
+                temp_dict[year] = 0
+            subject_dict[sub] = temp_dict
+        for book in book_list:
+            pattern = r'([^]?[^|]+[$]?)'
+            result = re.findall(pattern, book['sub_words'])
+            for word in result:
+                subject_dict[word]['total'] += 1
+                subject_dict[word][book['pub_year']] += 1
+
+        print(subject_dict)
+
+    # 主题词 表
+    def subject_table(self, data):
+        self.sub_col.insert_one(data)
+
 
 if __name__ == "__main__":
-    # dbOp = dataToMongo()
-    # # dbOp.findByPublish("全国图书馆文献缩微中心")
-    # dbOp.backDB()
     handle = handleBookInfo()
-    # item = handle.find_one()
-    # print(item)
-    # handle.item_process(item)
-    # handle.page_query()
-    # handle.sort()
-    # handle.deleteById('')
-    # handle.aggregate()
-    # handle.export_json()
-    handle.export_csv()
+    handle.year_subject()
