@@ -217,13 +217,21 @@ class handleBookInfo:
                 subject_dict[word]['total'] += 1
                 subject_dict[word][book['pub_year']] += 1
 
-        print(subject_dict)
+        # print(subject_dict)
+        data_list = []
+        for sub_item in subject_dict:
+            data_list.append(subject_dict[sub_item])
+        # print(data_list)
+        self.sub_col.insert_many(data_list)
 
     # 主题词 表
-    def subject_table(self, data):
-        self.sub_col.insert_one(data)
+    def sub_operate(self):
+        result = self.sub_col.find().limit(10)
+        print(result.count())
+        for r in result:
+            print(r)
 
 
 if __name__ == "__main__":
     handle = handleBookInfo()
-    handle.year_subject()
+    handle.sub_operate()
