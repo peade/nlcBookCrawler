@@ -2,6 +2,8 @@ import pymongo
 import re
 import json
 import csv
+import jieba
+import jieba.analyse
 
 
 class dataToMongo:
@@ -63,6 +65,7 @@ class handleBookInfo:
     db = dbClient['bookdb']
     book_table = db['book']
     sub_col = db['subject']
+    word_table = db['key_words']
 
     def find_one(self):
         book = self.book_table.find_one()
@@ -231,7 +234,58 @@ class handleBookInfo:
         for r in result:
             print(r)
 
+    def sub_aggregate(self):
+        pipe = [{
+            "$project": {
+                '_id': 0,
+                "word": 1,
+                "total": 1,
+                "2000": 1
+            }},
+            {
+                "$match": {
+                    "2000": {'$gt': 0}
+                }
+            },
+            {
+                '$sort': {
+                    '2000': -1
+                }
+            }
+        ]
+        result = self.sub_col.aggregate(pipe)
+        print(result)
+        # print(result.count())
+        for res in result:
+            print(res)
+
+    # 主题词按年查找
+    def sub_by_year(self):
+        result = self.sub_col.find({
+            '2000': {'$gte': 0}
+        }, {"_id": 0, "word": 1, "total": 1}).sort('total', pymongo.DESCENDING)
+        print(result.count())
+        for res in result:
+            print(res['word'], res['total'])
+
+    def cut_title(self):
+        books = self.book_table.find().limit(100)
+        all_word = self.word_table.find()
+        # jieba分词，添加自定义词
+        for word in all_word:
+            jieba.add_word(word['word'])
+        for book in books:
+            res = jieba.lcut(book['bookname'], cut_all=False)
+            # print(book['bookname'], res)
+            abs_tag = jieba.analyse.extract_tags(book['abstract'], topK=30, withWeight=False)
+            abs_cut = jieba.lcut(book['abstract'], cut_all=False)
+            abs_rank_tag = jieba.analyse.textrank(book['abstract'], topK=20, withWeight=False,
+                                                  allowPOS=('ns', 'n', 'vn', 'v'))
+            print(abs_tag)
+            # print(abs_cut)
+            print('rank', abs_rank_tag)
+
 
 if __name__ == "__main__":
     handle = handleBookInfo()
-    handle.sub_operate()
+    handle.cut_title()
