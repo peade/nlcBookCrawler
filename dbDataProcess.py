@@ -67,8 +67,8 @@ class handleBookInfo:
     sub_col = db['subject']
     word_table = db['key_words']
 
-    def find_one(self):
-        book = self.book_table.find_one()
+    def get_books(self):
+        book = self.book_table.find().limit(100)
         # print(book)
         return book
 
@@ -268,6 +268,7 @@ class handleBookInfo:
         for res in result:
             print(res['word'], res['total'])
 
+    # 分割标题
     def cut_title(self):
         books = self.book_table.find().limit(100)
         all_word = self.word_table.find()
@@ -288,4 +289,5 @@ class handleBookInfo:
 
 if __name__ == "__main__":
     handle = handleBookInfo()
-    handle.cut_title()
+    # handle.cut_title()
+    handle.get_books()
