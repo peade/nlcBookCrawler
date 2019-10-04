@@ -14,6 +14,7 @@ class subject_process:
     sub_a_col = db['subA']
     year_array = ['2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', '2010', '2011',
                   '2012', '2013', '2014', '2015', '2016', '2017', '2018']
+    gap_array = ['2000-2004', '2005-2009', '2010-2014', '2015-2018']
 
     def get_books(self):
         all = self.book_col.find().limit(10)
@@ -64,8 +65,10 @@ class subject_process:
             if 'subject_terms' in book:
                 # term_text = book['subject_terms'].replace('$$', '')
                 term_text = book['subject_terms']
-                pattern = r'\|a\s([^\|\s\$]+)[\$|\s|$]'
+                pattern = r'\|a\s([^\|\s\$]+)[\$|\s|$]?'
                 result = re.findall(pattern, string=term_text)
+                print(book['subject_terms'])
+                print(result)
                 book['a_list'] = result
                 book_list.append(book)
                 temp_set = set(result)
@@ -85,7 +88,7 @@ class subject_process:
         data_list = []
         for sub_item in subject_dict:
             data_list.append(subject_dict[sub_item])
-        self.save_subject_a(data_list)
+        # self.save_subject_a(data_list)
 
     # 保存主要款目数据
     def save_subject_a(self, data_list):
@@ -222,18 +225,21 @@ class subject_process:
         # 图书数据数组 从数据库里查出来的值，只能进行一次遍历
         book_list = []
         for book in all:
-
             if 'subject_terms' in book:
                 # term_text = book['subject_terms'].replace('$$', '')
                 term_text = book['subject_terms']
                 # print(term_text)
                 # print(book['sub_words'])
-                pattern = r'\|[a-z]\s([^\|\s\$]+)[\$|\s|$]'
+                pattern = r'\|[a-z]\s([^\|\s\$]+)[\$\s$]?'
+                # pattern = r'\|[a-z]\s+([^\s\|\$]*)'
                 result = re.findall(pattern, string=term_text)
-                book['a_list'] = result
+                book['a_list'] = set(result)
                 book_list.append(book)
                 temp_set = set(result)
                 word_set = word_set.union(temp_set)
+                print(book['subject_terms'])
+                print(book['a_list'])
+                print(book['sub_words'])
         # print(word_set)
         # 构建主题词键值对，每一个主题词下面，有各个年份的初始数量为0
         subject_dict = dict()
@@ -283,8 +289,107 @@ class subject_process:
             # for word in all:
             #     print(word['word'], word[year])
 
+    # 全主题词 各个阶段高频主题词
+    def full_gap_high(self):
+        set_data = set()
+        dict_data = dict()
+        for i in range(1, 5):
+            gap_data = self.sub_col.find({'gap' + str(i): {'$gt': 0}}).limit(20).sort('gap' + str(i),
+                                                                                      pymongo.DESCENDING)
+            # print(self.gap_array[i - 1], '频次')
+            dict_data[self.gap_array[i - 1]] = []
+            for item in gap_data:
+                # print(item['word'], item['gap' + str(i)])
+                set_data.add(item['word'])
+                dict_data[self.gap_array[i - 1]].append(item['word'])
+        for word in set_data:
+            bo = True
+            for key in dict_data:
+                if word not in dict_data[key]:
+                    bo = False
+            if bo:
+                print(word)
+
+    # 全主题词 各阶段新增主题词
+    def full_gap_new(self):
+        gap2_data = self.sub_col.find({'gap2': {'$gt': 0}, 'gap1': 0}).sort('gap2', pymongo.DESCENDING).limit(10)
+        print("阶段2>阶段1", "频次")
+        for item in gap2_data:
+            print(item['word'], item['gap2'])
+        gap3_data = self.sub_col.find({'gap3': {'$gt': 0}, 'gap2': 0, 'gap1': 0}) \
+            .sort('gap3',
+                  pymongo.DESCENDING).limit(10)
+        print('阶段3>阶段2', "频次")
+        for gap3 in gap3_data:
+            print(gap3['word'], gap3['gap3'])
+
+        gap4_data = self.sub_col.find({'gap4': {'$gt': 0}, 'gap3': 0, 'gap2': 0, 'gap1': 0}) \
+            .sort('gap4',
+                  pymongo.DESCENDING).limit(
+            10)
+        print('阶段4>阶段3', "频次")
+        for gap4 in gap4_data:
+            # print(gap4)
+            print(gap4['word'], gap4['gap4'])
+        print('gap2', gap2_data.count())
+        print('gap3', gap3_data.count())
+        print('gap4', gap4_data.count())
+
+    # 全主题词 矩阵
+    def full_gap_matrix(self):
+        all_word = self.sub_col.find().sort('total', pymongo.DESCENDING).limit(100)
+        book_data = self.book_col.find()
+        all_book = []
+        for book in book_data:
+            all_book.append(book)
+        top100_word = dict()
+        word100 = []
+        word_frequency = dict()
+        word_similary = dict()
+        for word in all_word:
+            top100_word[word['word']] = word['total']
+            word100.append(word['word'])
+        for word in word100:
+            word_frequency[word] = []
+            word_similary[word] = []
+            for w in word100:
+                print(word, w)
+                num = 0
+                for book in all_book:
+                    arr = book['sub_words'].split('|')
+                    if word in arr and w in arr:
+                        num += 1
+                        print(arr)
+                word_frequency[word].append(num)
+                print(top100_word[word], top100_word[w])
+                print(num, top100_word[word], top100_word[w])
+                similar = num * num / (top100_word[word] * top100_word[w])
+                if similar < 0.0001:
+                    similar = 0
+                if similar > 0:
+                    similar = round(similar, 4)
+                word_similary[word].append(similar)
+        # print('------------------------频率矩阵---------------------')
+        # for key in word_frequency:
+        #     print(key, word_frequency[key])
+        # print('------------------------相似矩阵---------------------')
+        # for key in word_similary:
+        #     print(key, word_similary[key])
+        # print('-------------------------相异矩阵---------------------')
+        # for key in word_similary:
+        #     list = word_similary[key]
+        #     new_list = []
+        #     for num in list:
+        #         new_num = 1 - num
+        #         if new_num >= 1:
+        #             new_num = 1
+        #         if new_num < 1:
+        #             new_num = round(new_num, 4)
+        #         new_list.append(new_num)
+        #     print(key, new_list)
+
 
 if __name__ == "__main__":
     subject = subject_process()
 
-    subject.full_each_year()
+    subject.subject_a_handle()
