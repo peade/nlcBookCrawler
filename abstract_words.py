@@ -19,9 +19,9 @@ class abstract_words:
 
     # 列出图书信息
     def list_book_info(self):
-        all = self.book_col.find()
+        all = self.book_col.find().limit(10)
         for book in all:
-            print(book['title_words'])
+            print(book)
 
     # 列出所有的表 （数据集合）
     def list_col(self):
@@ -139,30 +139,48 @@ class abstract_words:
         for word in all:
             print(word['word'], word['total'])
 
+    # 标题词 各个阶段 新数据
+    def gap_new(self):
+        gap2_data = self.title_col.find({'gap2': {'$gt': 0}, 'gap1': 0}).sort('gap2', pymongo.DESCENDING).limit(10)
+        print("阶段2>阶段1", "频次")
+        for item in gap2_data:
+            print(item['word'], item['gap2'])
+        gap3_data = self.title_col.find({'gap3': {'$gt': 0}, 'gap2': 0}).sort('gap3', pymongo.DESCENDING).limit(10)
+        print('阶段3>阶段2', "频次")
+        for gap3 in gap3_data:
+            print(gap3['word'], gap3['gap3'])
+
+        gap4_data = self.title_col.find({'gap4': {'$gt': 0}, 'gap3': 0}).sort('gap4', pymongo.DESCENDING).limit(10)
+        print('阶段4>阶段3', "频次")
+        for gap4 in gap4_data:
+            # print(gap4)
+            print(gap4['word'], gap4['gap4'])
+        print('gap2', gap2_data.count())
+        print('gap3', gap3_data.count())
+        print('gap4', gap4_data.count())
+
     # 清空标题词表
     def clean_title(self):
         self.title_col.remove({})
 
     # 分割摘要
     def cut_abstract(self):
-        books = self.book_col.find().limit(100)
+        books = self.book_col.find().limit(1000)
         all_word = self.word_col.find()
         # jieba分词，添加自定义词
         for word in all_word:
             jieba.add_word(word['word'])
+        jieba.analyse.set_stop_words('./rawdata/abstract_stop_words.txt')
         for book in books:
-            # res = jieba.lcut(book['bookname'], cut_all=False)
-            # print(book['bookname'], res)
             abs_tag = jieba.analyse.extract_tags(book['abstract'], topK=30, withWeight=False)
             abs_cut = jieba.lcut(book['abstract'], cut_all=False)
-            abs_rank_tag = jieba.analyse.textrank(book['abstract'], topK=20, withWeight=False,
+            abs_rank_tag = jieba.analyse.textrank(book['abstract'], topK=30, withWeight=False,
                                                   allowPOS=('ns', 'n', 'vn', 'v'))
             print(abs_tag)
             # print(abs_cut)
-            print('rank', abs_rank_tag)
+            # print('rank', abs_rank_tag)
 
 
 if __name__ == "__main__":
-    title = title_process()
-    title.title_top()
-    # title.cut_title()
+    abs = abstract_words()
+    abs.gap_new()

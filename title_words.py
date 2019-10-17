@@ -68,19 +68,19 @@ class title_process:
         # jieba分词，添加自定义词
         for word in all_word:
             jieba.add_word(word['word'])
-        # add_words = ['举要']
-        del_words = ['的', '与', '《', '》', '及', '·', '(', ')', '叫', '“', '”', '是', '从', '、']
-        for word in del_words:
-            jieba.del_word(word)
+        # 设置停用词
+        jieba.analyse.set_stop_words('./rawdata/abstract_stop_words.txt')
         for book in books:
-            res = jieba.lcut(book['bookname'], cut_all=False)
-            title_words = '|'.join(res)
-            self.book_col.update_one({'_id': book['_id']}, {"$set": {'title_words': title_words}})
+            # print(book['title_words'])
+            abs_tag = jieba.analyse.extract_tags(book['bookname'], topK=30, withWeight=False)
+            word_str = '|'.join(abs_tag)
+            # print(word_str)
+            self.book_col.update_one({'_id': book['_id']}, {'$set': {'title_words': word_str}})
 
     # 标题分词到数据表
     def fill_title(self):
         all = self.book_col.find()
-        del_words = ['的', '与', '《', '》', '及', '·', '(', ')', '叫', '“', '”', '是', '从', '、']
+        # del_words = ['的', '与', '《', '》', '及', '·', '(', ')', '叫', '“', '”', '是', '从', '、']
         # 主要款目集合
         word_set = set()
         # 图书数据数组 从数据库里查出来的值，只能进行一次遍历
@@ -88,10 +88,7 @@ class title_process:
         for book in all:
             if 'subject_terms' in book:
                 title_text = book['title_words']
-                result = set(title_text.split('|'))
-                for dw in del_words:
-                    if dw in result:
-                        result.remove(dw)
+                result = title_text.split('|')
                 book['title_word_list'] = result
                 book_list.append(book)
                 temp_set = set(result)
@@ -99,11 +96,11 @@ class title_process:
         # print(word_set)
         # 构建主题词键值对，每一个主题词下面，有各个年份的初始数量为0
         title_dict = dict()
-        for sub in word_set:
-            temp_dict = {'word': sub, 'total': 0}
+        for wo in word_set:
+            temp_dict = {'word': wo, 'total': 0}
             for year in self.year_array:
                 temp_dict[year] = 0
-            title_dict[sub] = temp_dict
+            title_dict[wo] = temp_dict
         for book in book_list:
             for word in book['title_word_list']:
                 title_dict[word][book['pub_year']] += 1
@@ -139,9 +136,92 @@ class title_process:
         for word in all:
             print(word['word'], word['total'])
 
+    # 各阶段标题词
+    def gap_high(self):
+        set_data = set()
+        dict_data = dict()
+        for i in range(1, 5):
+            gap_data = self.title_col.find({'gap' + str(i): {'$gt': 0}}).limit(20).sort('gap' + str(i),
+                                                                                        pymongo.DESCENDING)
+            print('gap' + str(i), gap_data.count())
+            print(self.gap_array[i - 1], '频次')
+            dict_data[self.gap_array[i - 1]] = []
+            for item in gap_data:
+                print(item['word'], item['gap' + str(i)])
+                set_data.add(item['word'])
+                dict_data[self.gap_array[i - 1]].append(item['word'])
+        for word in set_data:
+            bo = True
+            for key in dict_data:
+                if word not in dict_data[key]:
+                    bo = False
+            if bo:
+                print(word)
+
     # 清空标题词表
     def clean_title(self):
         self.title_col.remove({})
+        print('clean title table')
+
+    # 标题词 矩阵
+    def full_gap_matrix(self):
+        all_word = self.title_col.find().sort('total', pymongo.DESCENDING).limit(100)
+        book_data = self.book_col.find()
+        all_book = []
+        for book in book_data:
+            all_book.append(book)
+        top100_word = dict()
+        word100 = []
+        word_frequency = dict()
+        word_similary = dict()
+        for word in all_word:
+            top100_word[word['word']] = word['total']
+            word100.append(word['word'])
+        for word in word100:
+            word_frequency[word] = []
+            word_similary[word] = []
+            for w in word100:
+                print(word, w)
+                num = 0
+                for book in all_book:
+                    arr = book['title_words'].split('|')
+                    if word in arr and w in arr:
+                        num += 1
+                        print(arr)
+                word_frequency[word].append(num)
+                print(top100_word[word], top100_word[w])
+                print(num, top100_word[word], top100_word[w])
+                similar = num * num / (top100_word[word] * top100_word[w])
+                if similar >= 1:
+                    similar = 1
+                if similar < 0.0001:
+                    similar = 0
+                if similar > 0:
+                    similar = round(similar, 4)
+                word_similary[word].append(similar)
+        print('------------------------频率矩阵---------------------')
+        for key in word_frequency:
+            freq_str = ' '.join('%s' % id for id in word_frequency[key])
+            print(key, freq_str)
+        print('------------------------相似矩阵---------------------')
+        for key in word_similary:
+            simi_str = ' '.join('%s' % id for id in word_similary[key])
+            print(key, simi_str)
+        print('-------------------------相异矩阵---------------------')
+        for key in word_similary:
+            list = word_similary[key]
+            new_list = []
+            for num in list:
+                new_num = 1 - num
+                if new_num >= 1:
+                    new_num = 1
+                if new_num < 1:
+                    new_num = round(new_num, 4)
+                if new_num <= 0:
+                    new_num = 0
+                new_list.append(new_num)
+            disi_str = ' '.join('%s' % id for id in new_list)
+            print(key, disi_str)
 
     # 分割摘要
     def cut_abstract(self):
@@ -164,5 +244,4 @@ class title_process:
 
 if __name__ == "__main__":
     title = title_process()
-    title.title_top()
-    # title.cut_title()
+    title.full_gap_matrix()

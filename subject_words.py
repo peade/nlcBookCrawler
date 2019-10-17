@@ -168,12 +168,15 @@ class subject_process:
         print("阶段2>阶段1", "频次")
         for item in gap2_data:
             print(item['word'], item['gap2'])
-        gap3_data = self.sub_a_col.find({'gap3': {'$gt': 0}, 'gap2': 0}).sort('gap3', pymongo.DESCENDING).limit(10)
+        gap3_data = self.sub_a_col.find({'gap3': {'$gt': 0}, 'gap2': 0, 'gap1': 0}).sort('gap3',
+                                                                                         pymongo.DESCENDING).limit(10)
         print('阶段3>阶段2', "频次")
         for gap3 in gap3_data:
             print(gap3['word'], gap3['gap3'])
 
-        gap4_data = self.sub_a_col.find({'gap4': {'$gt': 0}, 'gap3': 0}).sort('gap4', pymongo.DESCENDING).limit(10)
+        gap4_data = self.sub_a_col.find({'gap4': {'$gt': 0}, 'gap3': 0, 'gap2': 0, 'gap1': 0}).sort('gap4',
+                                                                                                    pymongo.DESCENDING).limit(
+            10)
         print('阶段4>阶段3', "频次")
         for gap4 in gap4_data:
             # print(gap4)
@@ -298,20 +301,17 @@ class subject_process:
         print("阶段2>阶段1", "频次")
         for item in gap2_data:
             print(item['word'], item['gap2'])
-        gap3_data = self.sub_col.find({'gap3': {'$gt': 0}, 'gap2': 0, 'gap1': 0}) \
-            .sort('gap3',
-                  pymongo.DESCENDING).limit(10)
+        gap3_data = self.sub_col.find({'gap3': {'$gt': 0}, 'gap2': 0, 'gap1': 0}).sort('gap3',
+                                                                                       pymongo.DESCENDING).limit(10)
         print('阶段3>阶段2', "频次")
         for gap3 in gap3_data:
             print(gap3['word'], gap3['gap3'])
 
-        gap4_data = self.sub_col.find({'gap4': {'$gt': 0}, 'gap3': 0, 'gap2': 0, 'gap1': 0}) \
-            .sort('gap4',
-                  pymongo.DESCENDING).limit(
+        gap4_data = self.sub_col.find({'gap4': {'$gt': 0}, 'gap3': 0, 'gap2': 0, 'gap1': 0}).sort('gap4',
+                                                                                                  pymongo.DESCENDING).limit(
             10)
         print('阶段4>阶段3', "频次")
         for gap4 in gap4_data:
-            # print(gap4)
             print(gap4['word'], gap4['gap4'])
         print('gap2', gap2_data.count())
         print('gap3', gap3_data.count())
@@ -381,4 +381,4 @@ class subject_process:
 if __name__ == "__main__":
     subject = subject_process()
 
-    subject.full_gap_matrix()
+    subject.full_gap_new()
